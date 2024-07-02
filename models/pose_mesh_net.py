@@ -1,3 +1,5 @@
+import os.path
+
 from .pct.pct_pose import PCTv2_SegReg
 from .pose2mesh.pointcloud2mesh_net import pointcloud2mesh_net, p2m_svd, JOINT_REGRESSOR_H36M_correct, H36M_J17_TO_J15, flip_pairs_15, skeleton_15
 from ._smpl import SMPL
@@ -17,7 +19,7 @@ from .smpl_hybrik.regressor import Hybrik
 import pickle
 from .smpl_hybrik.SMPL import SMPL_layer
 from .VoteHMR import GlobalParamRegressor, LocalParamRegressor
-from .LiDARCap.modules.regressor import Regressor
+# from .LiDARCap.modules.regressor import Regressor
 import smplx
 
 class pose_mesh_net(nn.Module):
@@ -425,14 +427,14 @@ class pose_dir(nn.Module):
 
 class pose_meshgraphormer(nn.Module):
     # PRN+MRN
-    def __init__(self, pose_dim = 15, device = 'cuda', pmg_cfg = None, use_collision = False, **kwargs):
+    def __init__(self, smpl_dir, pose_dim = 15, device = 'cuda', pmg_cfg = None, use_collision = False, **kwargs):
         super().__init__()
         self.cfg = pmg_cfg
         self.pct_pose = PCTv2_SegReg(pct_config)
         if not self.cfg.NETWORK.PRN_TRAINED:
             for p in self.pct_pose.parameters():
                 p.requires_grad = False
-        self.smpl = SMPL()
+        self.smpl = SMPL(smpl_dir=smpl_dir)
         num_heads = 3
         self.emb_dim = 48
         # self.mesh_model = SMPL()
@@ -475,7 +477,7 @@ class pose_meshgraphormer(nn.Module):
 
         p2m_ = []
         for i in range(len(self.graphs) - 3):
-            config1 = BertConfig.from_pretrained('./models/graphormer')
+            config1 = BertConfig.from_pretrained('/home/guido/Documents/thesis_research/occupancy_dataset/third_party/lidar_hmr/models/graphormer')
             config1.output_attentions = False
             config1.img_feature_dim = self.emb_dim
             config1.output_feature_dim = self.emb_dim
@@ -499,7 +501,7 @@ class pose_meshgraphormer(nn.Module):
         self.up1 = nn.Linear(1946, 3679)
         self.up2 = nn.Linear(3679, 6890)
 
-        self.joint_regressor = torch.tensor(np.load(JOINT_REGRESSOR_H36M_correct))
+        self.joint_regressor = torch.tensor(np.load(os.path.join(smpl_dir, 'J_regressor_h36m_correct.npy')))
         self.valid_kpts_indx = H36M_J17_TO_J15
         self.normal_weight = 0.1 #0.1
         self.joint_weight = 1.0
@@ -846,11 +848,11 @@ def quat2mat(quat):
     return rotMat 
 
 class LiDAR_HMR(nn.Module):
-    def __init__(self, pose_dim = 15, device = 'cuda', pmg_cfg = None, train_pmg = True, **kwargs):
+    def __init__(self, smpl_dir, pose_dim = 15, device = 'cuda', pmg_cfg = None, train_pmg = True, **kwargs):
         super().__init__()
-        self.pmg = pose_meshgraphormer(pose_dim=pose_dim, device=device, pmg_cfg=pmg_cfg)
-        j36m = np.load('./models/data/J_regressor_h36m_correct.npy')
-        self.smpl_ = SMPL_layer('./smplx_models/smpl/SMPL_NEUTRAL.pkl',num_joints = 24, h36m_jregressor=j36m)
+        self.pmg = pose_meshgraphormer(pose_dim=pose_dim, device=device, pmg_cfg=pmg_cfg, smpl_dir=smpl_dir)
+        j36m = np.load(os.path.join(smpl_dir, 'J_regressor_h36m_correct.npy'))
+        self.smpl_ = SMPL_layer(os.path.join(smpl_dir, 'basicModel_neutral_lbs_10_207_0_v1.0.0.pkl'),num_joints = 24, h36m_jregressor=j36m, indx_vert_path = os.path.join(smpl_dir, 'indx_vert.pkl'))
         self.beta_regressor = nn.Sequential(
             nn.Linear(48+48+23+23+23, 96),
             nn.Linear(96, 24),

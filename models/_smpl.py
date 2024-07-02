@@ -4,7 +4,7 @@ This file contains the definition of the SMPL model
 It is adapted from opensource project GraphCMR (https://github.com/nkolot/GraphCMR/)
 """
 from __future__ import division
-
+import os
 import torch
 import torch.nn as nn
 import numpy as np
@@ -57,15 +57,14 @@ def quat2mat(quat):
     return rotMat  
 
 class SMPL(nn.Module):
-    def __init__(self, gender='neutral'):
+    def __init__(self, smpl_dir, gender='neutral'):
         super(SMPL, self).__init__()
-        model_folder = './models/graphormer/'
         if gender=='m':
-            model_file=model_folder + 'data/basicModel_m_lbs_10_207_0_v1.0.0.pkl'
+            model_file = os.path.join(smpl_dir, 'basicModel_m_lbs_10_207_0_v1.0.0.pkl')
         elif gender=='f':
-            model_file=model_folder + 'data/basicModel_f_lbs_10_207_0_v1.0.0.pkl'
+            model_file = os.path.join(smpl_dir, 'basicModel_f_lbs_10_207_0_v1.0.0.pkl')
         else:
-            model_file=model_folder + 'data/basicModel_neutral_lbs_10_207_0_v1.0.0.pkl'
+            model_file = os.path.join(smpl_dir, 'basicModel_neutral_lbs_10_207_0_v1.0.0.pkl')
         
         smpl_model = pickle.load(open(model_file, 'rb'), encoding='latin1') 
         J_regressor = smpl_model['J_regressor'].tocoo()
@@ -97,11 +96,11 @@ class SMPL(nn.Module):
         self.J = None
         self.R = None
         
-        J_regressor_extra = torch.from_numpy(np.load(model_folder + 'data/J_regressor_extra.npy')).float()
+        J_regressor_extra = torch.from_numpy(np.load(os.path.join(smpl_dir, 'J_regressor_extra.npy'))).float()
         self.register_buffer('J_regressor_extra', J_regressor_extra)
         self.joints_idx = [8, 5, 29, 30, 4, 7, 21, 19, 17, 16, 18, 20, 31, 32, 33, 34, 35, 36, 37, 24, 26, 25, 28, 27]
 
-        J_regressor_h36m_correct = torch.from_numpy(np.load(model_folder + 'data/J_regressor_h36m_correct.npy')).float()
+        J_regressor_h36m_correct = torch.from_numpy(np.load(os.path.join(smpl_dir, 'J_regressor_h36m_correct.npy'))).float()
         self.register_buffer('J_regressor_h36m_correct', J_regressor_h36m_correct)
 
     def forward(self, pose, beta):
@@ -312,3 +311,4 @@ class Mesh(object):
                 out.append(y)
             x = torch.stack(out, dim=0)
         return x
+
