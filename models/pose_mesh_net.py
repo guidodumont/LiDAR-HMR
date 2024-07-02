@@ -477,7 +477,8 @@ class pose_meshgraphormer(nn.Module):
 
         p2m_ = []
         for i in range(len(self.graphs) - 3):
-            config1 = BertConfig.from_pretrained('/home/guido/Documents/thesis_research/occupancy_dataset/third_party/lidar_hmr/models/graphormer')
+            file_dir = os.path.dirname(os.path.abspath(__file__))
+            config1 = BertConfig.from_pretrained(os.path.join(file_dir, 'graphormer'))
             config1.output_attentions = False
             config1.img_feature_dim = self.emb_dim
             config1.output_feature_dim = self.emb_dim
